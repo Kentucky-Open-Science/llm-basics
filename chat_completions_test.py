@@ -6,7 +6,7 @@ config = configparser.ConfigParser()
 config.read('config.ini')
 openai_api_base = config.get('API', 'openai_api_base')
 openai_api_key = config.get('API', 'openai_api_key')
-adapter_id = ""  # Add your LLM Factory adapter ID here
+adapter_id = "deepseek"  # Add your LLM Factory adapter ID here
 
 # Initialize OpenAI client
 client = OpenAI(
@@ -24,9 +24,9 @@ def test():
             # System message defines the AI assistant's behavior
             {"role": "system", "content": "You are a poetic assistant, skilled in explaining complex programming concepts with creative flair."},
             # Simulated conversation history
-            {"role": "model", "content": "Hello, what can I assist you with?"},
+            {"role": "assistant", "content": "Hello, what can I assist you with?"},
             {"role": "user", "content": "Hello, my name is john"},
-            {"role": "model", "content": "Hello, John, what can I assist you with today?"},
+            {"role": "assistant", "content": "Hello, John, what can I assist you with today?"},
             # User's current query
             {"role": "user", "content": "What is my name?"},
         ],
@@ -37,7 +37,7 @@ def test():
     # Print the full response
     print("Completion result:")
     print(completion)
-    return 
+    return completion
 
 if __name__ == '__main__':
     test()
