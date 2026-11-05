@@ -6,6 +6,10 @@ config = configparser.ConfigParser()
 config.read('config.ini')
 openai_api_base = config.get('API', 'openai_api_base')
 openai_api_key = config.get('API', 'openai_api_key')
+# Model IDs are provider-specific; set them in the [MODELS] section of config.ini
+embedding_model = config.get('MODELS', 'embeddings', fallback='')
+if not embedding_model:
+    raise SystemExit("Set [MODELS] embeddings in config.ini (see config.ini.example)")
 
 # Initialize OpenAI client
 client = OpenAI(
@@ -19,13 +23,12 @@ def generate_embeddings(inputs):
     
     Args:
         inputs: Text to create embeddings for
-        model: LLM Factory adapter ID for embeddings
         
     Returns:
         Vector embedding representation of the input text
     """
     # Call the embeddings endpoint to generate vector representations
-    response = client.embeddings.create(input=inputs, model="")
+    response = client.embeddings.create(input=inputs, model=embedding_model)
     print(response)
     return response
 

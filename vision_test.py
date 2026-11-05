@@ -2,6 +2,10 @@ from openai import OpenAI
 import configparser
 import base64
 import os
+import sys
+
+# Model output can contain characters the console can't display
+sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 # Load configuration from config.ini file
 config = configparser.ConfigParser()
@@ -14,6 +18,11 @@ client = OpenAI(
     api_key=openai_api_key,
     base_url=openai_api_base,
 )
+
+# Model IDs are provider-specific; set them in the [MODELS] section of config.ini
+model = config.get('MODELS', 'vision', fallback='')
+if not model:
+    raise SystemExit("Set [MODELS] vision in config.ini (see config.ini.example)")
 
 def encode_image(image_path):
     """
@@ -49,7 +58,7 @@ def analyze_image(image_path, prompt):
     
     # Create the API request with image and prompt
     response = client.chat.completions.create(
-        model="meta-llama/Llama-3.2-90B-Vision-Instruct", # Select a multi-modal model
+        model=model, # Select a multi-modal model
         messages=[
             {
                 "role": "user",
@@ -66,9 +75,9 @@ def analyze_image(image_path, prompt):
                 ]
             }
         ],
-        max_tokens=300
+        # Reasoning models may spend tokens thinking before the visible answer
+        max_tokens=1000
     )
-    
     # Return the model's response
     return response.choices[0].message.content
 

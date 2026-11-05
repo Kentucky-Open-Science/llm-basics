@@ -1,3 +1,23 @@
 [API]
+; Your API key (LLM Factory keys: https://llm-factory.ai.uky.edu/api-keys)
 openai_api_key=
+; OpenAI-compatible base URL. The example server is LLM Factory;
+; for OpenAI use https://api.openai.com/v1
 openai_api_base=https://api-llm-factory.ai.uky.edu/v1
+
+[MODELS]
+; Model IDs are provider-specific. Run test_models_endpoint.py to list what
+; your server offers (each entry includes a "task" field telling you what the
+; model is for). Defaults below are the models currently served by the
+; example LLM Factory endpoint.
+; Generate models: zai-org/GLM-5.3-Flash, Kentucky-Open-Science/KOS-V5-Instruct
+chat = zai-org/GLM-5.3-Flash
+vision = zai-org/GLM-5.3-Flash
+; Embed models: Kentucky-Open-Science/KOS-V5-Retriever, nomic-ai/nomic-embed-text-v2-moe
+embeddings = Kentucky-Open-Science/KOS-V5-Retriever
+transcription = Systran/faster-whisper-large-v3
+tts = speaches-ai/Kokoro-82M-v1.0-ONNX
+; Comma-separated voice names; /v1/models lists all voices the TTS model supports
+tts_voices = af_heart, af_alloy, af_aoede, af_bella, af_jessica, af_kore, af_nicole, af_nova, af_river, af_sarah, af_sky, am_adam, am_echo, am_eric, am_fenrir, am_liam, am_michael, am_onyx, am_puck, am_santa, bf_alice, bf_emma, bf_isabella, bf_lily, bm_daniel, bm_fable, bm_george, bm_lewis
+; Decisions-capable model (task "systemone" in /v1/models)
+decisions = bespokelabs/Bespoke-Nimble-9B

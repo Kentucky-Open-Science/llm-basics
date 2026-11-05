@@ -1,1 +1,10 @@
 config.ini
+
+# Python
+__pycache__/
+*.pyc
+
+# Generated outputs
+test_*.mp3
+rag_docs.json
+rag_index.faiss

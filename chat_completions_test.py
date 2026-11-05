@@ -1,12 +1,19 @@
 from openai import OpenAI
 import configparser
+import sys
+
+# Model output can contain characters the console can't display
+sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 # Load configuration from config.ini file
 config = configparser.ConfigParser()
 config.read('config.ini')
 openai_api_base = config.get('API', 'openai_api_base')
 openai_api_key = config.get('API', 'openai_api_key')
-adapter_id = "deepseek"  # Add your LLM Factory adapter ID here
+# Model IDs are provider-specific; set them in the [MODELS] section of config.ini
+model = config.get('MODELS', 'chat', fallback='')
+if not model:
+    raise SystemExit("Set [MODELS] chat in config.ini (see config.ini.example)")
 
 # Initialize OpenAI client
 client = OpenAI(
@@ -19,7 +26,7 @@ def test():
     
     # Create a chat completion with predefined messages
     completion = client.chat.completions.create(
-        model=adapter_id,
+        model=model,
         messages=[
             # System message defines the AI assistant's behavior
             {"role": "system", "content": "You are a poetic assistant, skilled in explaining complex programming concepts with creative flair."},
@@ -30,7 +37,7 @@ def test():
             # User's current query
             {"role": "user", "content": "What is my name?"},
         ],
-        max_tokens=200,     # Maximum length of the response in tokens
+        # max_tokens=200,     # Maximum length of the response in tokens
         temperature=0.7,    # Controls randomness (0=deterministic, 1=creative)
     )
     

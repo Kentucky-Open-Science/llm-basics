@@ -1,16 +1,25 @@
 import json
 import os
+import sys
 import numpy as np
 import faiss
 from openai import OpenAI
 import concurrent.futures
 import configparser
 
+# Model output can contain characters the console can't display
+sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+
 # Load configuration from config.ini file
 config = configparser.ConfigParser()
 config.read('config.ini')
 openai_api_base = config.get('API', 'openai_api_base')
 openai_api_key = config.get('API', 'openai_api_key')
+# Model IDs are provider-specific; set them in the [MODELS] section of config.ini
+embedding_model = config.get('MODELS', 'embeddings', fallback='')
+chat_model = config.get('MODELS', 'chat', fallback='')
+if not embedding_model or not chat_model:
+    raise SystemExit("Set [MODELS] embeddings and chat in config.ini (see config.ini.example)")
 
 
 class RAGDatabase:
@@ -23,14 +32,18 @@ class RAGDatabase:
         client, 
         db_file=None, 
         faiss_index_file=None,
-        dimension=768
+        embedding_model='',
+        chat_model=''
     ):
         self.client = client
         self.db_file = db_file  # File to store document texts
         self.faiss_index_file = faiss_index_file  # File to store vector index
         self.documents = []
-        self.dimension = dimension  # OpenAI dimension is 1536, LLM Factory is currently 768
-        self.index = faiss.IndexHNSWFlat(self.dimension, 32)  # Faster FAISS search
+        self.embedding_model = embedding_model  # Embedding model ID from config
+        self.chat_model = chat_model  # Chat model ID from config
+        # The index is created on first use, sized to the embedding
+        # dimension reported by the configured embeddings model
+        self.index = None
         self.is_db_modified = False
         self.is_index_modified = False
         
@@ -40,7 +53,12 @@ class RAGDatabase:
         if self.faiss_index_file and os.path.exists(faiss_index_file):
             self.load_faiss_index()
 
-    def embed_text(self, texts, model=''):
+    def ensure_index(self, dimension):
+        '''Create the FAISS index once the embedding dimension is known.'''
+        if self.index is None:
+            self.index = faiss.IndexHNSWFlat(dimension, 32)  # Faster FAISS search
+
+    def embed_text(self, texts, model=None):
         '''Generate embeddings for one or multiple texts.'''
         if isinstance(texts, str):  
             texts = [texts]  # Ensure batch format
@@ -48,7 +66,7 @@ class RAGDatabase:
         # Call the OpenAI-compatible embeddings endpoint
         response = self.client.embeddings.create(
             input=texts, 
-            model=model
+            model=model or self.embedding_model
         )
         return np.array([res.embedding for res in response.data], dtype=np.float32)
 
@@ -65,6 +83,9 @@ class RAGDatabase:
 
         # Flatten embeddings if `embed_text` returns a list for each input
         embeddings = np.array([e[0] for e in embeddings], dtype=np.float32)
+
+        # Create the index on first use, sized to the embedding dimension
+        self.ensure_index(embeddings.shape[1])
 
         # Add embeddings to vector index
         self.index.add(embeddings)  
@@ -131,12 +152,13 @@ class RAGDatabase:
 
     def rebuild_faiss_index(self):
         '''Rebuild FAISS index from stored documents.'''
-        self.index = faiss.IndexHNSWFlat(self.dimension, 32)  
+        self.index = None  # Recreated with the embedding dimension on next use
         
         if not self.documents:
             return
         
         embeddings = self.embed_text(self.documents)  
+        self.ensure_index(embeddings.shape[1])
         self.index.add(embeddings)  
         self.save_faiss_index()
 
@@ -144,6 +166,7 @@ class RAGDatabase:
         '''Retrieve the most relevant documents using FAISS.'''
         # Convert query to embedding
         query_embedding = self.embed_text([query]).reshape(1, -1)
+        self.ensure_index(query_embedding.shape[1])
         
         # Search for similar embeddings in the index
         distances, indices = self.index.search(query_embedding, top_k)
@@ -165,7 +188,7 @@ class RAGDatabase:
 
         # Generate response from LLM
         response = self.client.chat.completions.create(
-            model='',  # Add your LLM Factory adapter ID here
+            model=self.chat_model,
             messages=[
                 {'role': 'system', 'content': 'You are a helpful AI.'},
                 {'role': 'user', 'content': prompt}
@@ -187,7 +210,13 @@ if __name__ == '__main__':
     )
 
     # Create the RAG database
-    db = RAGDatabase(client, db_file="rag_docs.json", faiss_index_file="rag_index.faiss")
+    db = RAGDatabase(
+        client, 
+        db_file="rag_docs.json", 
+        faiss_index_file="rag_index.faiss",
+        embedding_model=embedding_model,
+        chat_model=chat_model
+    )
     
     # Add some sample documents
     db.add_document('The capital of France is Paris.')

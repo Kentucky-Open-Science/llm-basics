@@ -1,6 +1,10 @@
 from openai import OpenAI
 import configparser
 import json
+import sys
+
+# Model output can contain characters the console can't display
+sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 # Load configuration from config.ini file
 config = configparser.ConfigParser()
@@ -13,6 +17,11 @@ client = OpenAI(
     api_key=openai_api_key,
     base_url=openai_api_base,
 )
+
+# Model IDs are provider-specific; set them in the [MODELS] section of config.ini
+model = config.get('MODELS', 'chat', fallback='')
+if not model:
+    raise SystemExit("Set [MODELS] chat in config.ini (see config.ini.example)")
 
 class Tool:
     '''
@@ -156,7 +165,8 @@ def test():
             'role': 'system',
             'content': (
                 'You are a helpful assistant. You can use the following tools:\n' +
-                '\n'.join([f'{tool["function"]["name"]}: {tool["function"]["description"]}' for tool in tool_descriptions])
+                '\n'.join([f'{tool["function"]["name"]}: {tool["function"]["description"]}' for tool in tool_descriptions]) +
+                'Give the user helpful responses in natural language'
             )
         },
         {
@@ -167,7 +177,7 @@ def test():
 
     # Get initial model response with available tools
     completion = client.chat.completions.create(
-        model='/models/functionary-small-v2.5',
+        model=model,
         messages=messages, 
         max_tokens=200,
         temperature=0.7,
@@ -200,7 +210,7 @@ def test():
 
             # Get final response after tool use
             completion = client.chat.completions.create(
-                model='/models/functionary-small-v2.5',
+                model=model,
                 messages=messages, 
                 max_tokens=200,
                 temperature=0.7
